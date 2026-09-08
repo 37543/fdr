@@ -1,0 +1,133 @@
+<?php 
+  session_start();
+  require_once('php/connect.php');
+
+  $error = '';
+  if (isset($_POST['submit'])) {
+    $username = trim($_POST['username'] ?? '');
+    $password = trim($_POST['password'] ?? '');
+
+    if (!empty($username) && !empty($password)) {
+      $stmt = $conn->prepare("SELECT * FROM `admin` WHERE `username` = ? LIMIT 1");
+      $stmt->bind_param("s", $username);
+      $stmt->execute();
+      $result = $stmt->get_result();
+
+      if ($result && $result->num_rows > 0) {
+        $row = $result->fetch_assoc();
+        // ตรวจสอบรหัสผ่าน รองรับทั้งแบบ hash (password_hash) และรหัสข้อความเดิม
+        if (password_verify($password, $row['password']) || $password === $row['password']) {
+          $_SESSION['authen_id'] = $row['id'];
+          $_SESSION['first_name'] = $row['first_name'];
+          $_SESSION['last_name'] = $row['last_name'];
+          $_SESSION['status'] = $row['status'];
+
+          // อัปเดตเวลาเข้าใช้งานล่าสุด
+          $conn->query("UPDATE `admin` SET `last_login` = NOW() WHERE `id` = " . intval($row['id']));
+
+          header('Location: pages/dashboard');
+          exit;
+        } else {
+          $error = "รหัสผ่านไม่ถูกต้อง (Invalid password)";
+        }
+      } else {
+        $error = "ไม่พบชื่อผู้ใช้นี้ในระบบ (Username not found)";
+      }
+    } else {
+      $error = "กรุณากรอก Username และ Password ให้ครบถ้วน";
+    }
+  }
+?>
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <meta http-equiv="X-UA-Compatible" content="IE=edge">
+  <title>Login | Admin System</title>
+  <!-- Favicons -->
+  <link rel="apple-touch-icon" sizes="180x180" href="dist/img/favicons/apple-touch-icon.png">
+  <link rel="icon" type="image/png" sizes="32x32" href="dist/img/favicons/favicon-32x32.png">
+  <link rel="icon" type="image/png" sizes="16x16" href="dist/img/favicons/favicon-16x16.png">
+  <link rel="manifest" href="dist/img/favicons/site.webmanifest">
+  <link rel="mask-icon" href="dist/img/favicons/safari-pinned-tab.svg" color="#5bbad5">
+  <link rel="shortcut icon" href="dist/img/favicons/favicon.ico">
+  <meta name="msapplication-TileColor" content="#da532c">
+  <meta name="msapplication-config" content="dist/img/favicons/browserconfig.xml">
+  <meta name="theme-color" content="#ffffff">
+  
+  <!-- Tell the browser to be responsive to screen width -->
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <!-- Font Awesome -->
+  <link rel="stylesheet" href="https://use.fontawesome.com/releases/v5.0.13/css/all.css">
+  <!-- Ionicons -->
+  <link rel="stylesheet" href="https://code.ionicframework.com/ionicons/2.0.1/css/ionicons.min.css">
+  <!-- Theme style -->
+  <link rel="stylesheet" href="dist/css/adminlte.min.css">
+  <!-- Google Font: Source Sans Pro -->
+  <link href="https://fonts.googleapis.com/css?family=Source+Sans+Pro:300,400,400i,700" rel="stylesheet">
+</head>
+<body class="hold-transition login-page">
+<div class="login-box">
+  <div class="login-logo">
+    <a href="#"><b>Admin</b> System</a>
+  </div>
+  <!-- /.login-logo -->
+  <div class="card">
+    <div class="card-body login-card-body">
+      <p class="login-box-msg">ลงชื่อเข้าสู่ระบบจัดการข้อมูล</p>
+
+      <div class="alert alert-info text-center py-2 mb-3" style="font-size: 14px;">
+        <i class="fas fa-info-circle mr-1"></i> <strong>ข้อมูลสำหรับเข้าใช้งาน:</strong><br>
+        Username : <code>test</code><br>
+        Password : <code>123456789</code>
+      </div>
+
+      <?php if (!empty($error)): ?>
+        <div class="alert alert-danger alert-dismissible fade show" role="alert">
+          <i class="fas fa-exclamation-circle mr-1"></i> <?php echo htmlspecialchars($error); ?>
+        </div>
+      <?php endif; ?>
+
+      <form action="" method="post">
+
+        <div class="input-group mb-3">
+            <div class="input-group-prepend">
+                <span class="input-group-text"><i class="fas fa-user"></i></span>
+            </div>
+            <input type="text" name="username" class="form-control" placeholder="Username" required value="<?php echo htmlspecialchars($_POST['username'] ?? 'test'); ?>">
+        </div>
+        <div class="input-group mb-3">
+            <div class="input-group-prepend">
+                <span class="input-group-text"> <i class="fas fa-lock"></i></span>
+            </div>
+            <input type="password" name="password" class="form-control" placeholder="Password" required value="123456789">
+        </div>
+
+        <div class="row">
+          <!-- /.col -->
+          <div class="col-12">
+            <button type="submit" name="submit" class="btn btn-primary btn-block btn-flat">เข้าสู่ระบบ (Login)</button>
+          </div>
+          <!-- /.col -->
+        </div>
+        
+      </form>
+
+      <div class="mt-3 text-center">
+        <a href="<?php echo htmlspecialchars($github_url); ?>" target="_blank" class="text-muted">
+          <i class="fab fa-github mr-1"></i> View Source Code on GitHub
+        </a>
+      </div>
+    </div>
+    <!-- /.login-card-body -->
+  </div>
+</div>
+<!-- /.login-box -->
+
+<!-- jQuery -->
+<script src="plugins/jquery/jquery.min.js"></script>
+<!-- Bootstrap 4 -->
+<script src="plugins/bootstrap/js/bootstrap.bundle.min.js"></script>
+
+</body>
+</html>
